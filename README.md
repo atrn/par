@@ -119,5 +119,5 @@ Armed with FORfn we can now write,
 		ControlSirens,
 	    	FORfn(0, 10, func(number int) {
 			MonitorDoor(number)
-    	    	}),
+		}),
         )
