@@ -127,7 +127,7 @@ Armed with PAR_FORfn we can write,
 ## Classic fanout
 
 	work := make(chan Work)
-	results := make(chan Results)
+	results := make(chan Result)
 	par.DO(
 		func() {
 			for job := range Jobs() {
