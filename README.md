@@ -18,8 +18,9 @@ using `sync.WaitGroup` and hides the repetitive _clutter_.
 
 Imagine we have some functions that run loops to do some control
 operation. In our system we run these concurrently, perhaps they
-communicate but that's details. We run then concurrently and wait
-for them to finish.  Which in this case they never do...
+communicate but that's detail we can ignore for the time being.
+We run then concurrently and wait for them to finish.  Which in
+this case they never do...
 
 	par.DO(
 		ControlFuelRods,
@@ -46,16 +47,17 @@ synchronization.  The  functions eliminate clutter making  the process
 structure  more obvious  and  therefore more  easily comprehended  and
 maintained (i.e. not broken).
 
-## Abusing Import
+## Abusing import
 
-We can abuse Go's ability to import a package's symbols into the
-current package namespace and drop the package qualification when
-using DO() and FOR().  The lack of qualification makes using them
-seem a little more like using a native language construct.
+We can abuse Go's `import .` to let us use the package's functions
+without qualification. This makes them seem a little more like using
+a language construct.
 
-So, a user imports the package using ``import . "par"'', note
-the dot. They can then call its functions without qualification.
-The code above beomes,
+Importing the package using,
+
+	import . "github.com/atrn/par"
+
+lets us write,
 
 	DO(
 		ControlFuelRods,
@@ -70,14 +72,13 @@ The code above beomes,
         )
 
 
-This code looks okay, if you accept the namespace pollution, but the
-unqualified names DO() and FOR() are a little too generic and the code
-itself, especially "DO(", a little hard to read.
+That looks okay, if you accept the namespace pollution, but
+DO() and FOR() are a little too generic and not that descriptive.
 
 ## Synonyms, PAR and PAR_FOR 
 
-The package define synonyms for DO and FOR, PAR and PAR_FOR. When
-imported into `.` code looks like,
+The package define synonyms for DO and FOR, PAR and PAR_FOR.
+Using these the code becomes,
 
 	PAR(
 		ControlFuelRods,
@@ -92,24 +93,24 @@ imported into `.` code looks like,
         )
         
 
-## Nested PAR
+## Nested PARs
 
 Each of the above examples shows nesting of PAR via the
-function literal calling par.FOR. This pattern, a func()
-that just calls par.FOR is common and luckily Go lets us
-make it simpler.
+function literal calling par.FOR aka PAR_FOR. This pattern,
+a func() that just calls par.FOR is common, luckily Go lets
+us simplify it.
 
-The par package defines what it refers to as _fn_ functions.
-These are,
+The package defines what it refers to as _fn_ function
+(I never thought of a good name).
 
-	func DOfn(f ...func()) func()
 	func FORfn(start, limit int, f func(int)) func()
 
-The _fn_ functions return a func() intended to be passed to par.DO and
-are used in created nested process structures.  FORfn is the most
-useful.  
+The returned function calls par.FOR using the supplied
+arguments and is passed to par.DO as one of its functions
+to call concurrently. As with par.DO and par.FOR, par.FORfn
+has a synonym intended to be used via `import .` - PAR_FORfn.
 
-Armed with FORfn we can now write,
+Armed with PAR_FORfn we can write,
 
 	PAR(
 	    	ControlFuelRods,
@@ -117,7 +118,39 @@ Armed with FORfn we can now write,
 	    	MoveDials,
 	    	FlashLights,
 		ControlSirens,
-	    	FORfn(0, 10, func(number int) {
+	    	PAR_FORfn(0, 10, func(number int) {
 			MonitorDoor(number)
 		}),
         )
+
+
+## Classic fanout
+
+	work := make(chan Work)
+	results := make(chan Results)
+	par.DO(
+		func() {
+			for job := range Jobs() {
+				work <- job
+			}
+			close(work)
+		},
+		func() {
+			par.FOR(0, Nworkers, func(int) {
+				for job := range work {
+					results <- Process(job)
+				}
+			}
+			close(results)
+		},
+		func() {
+			for result := range results {
+				Consume(result)
+			}
+		},
+	)
+
+Removing the explicit sync.WaitGroup use makes the
+process structure easier to comprehend (and may
+help stop the endless complaints about multiple
+channel closes).
