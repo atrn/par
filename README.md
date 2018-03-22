@@ -126,18 +126,18 @@ Armed with PAR_FORfn we can write,
 
 ## Classic fanout
 
-	work := make(chan Work)
+	jobs := make(chan Work)
 	results := make(chan Result)
 	par.DO(
 		func() {
 			for job := range Jobs() {
-				work <- job
+				jobs <- job
 			}
 			close(work)
 		},
 		func() {
 			par.FOR(0, Nworkers, func(int) {
-				for job := range work {
+				for job := range jobs {
 					results <- Process(job)
 				}
 			}
