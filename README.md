@@ -2,25 +2,25 @@
 
 The par  package provides functions that implement  occam-style PAR
 and replicated-PAR control structures. These provide synchronization
-upon gorouting completion in the same way as idiomatic `sync.WaitGroup`
+upon goroutine completion in the same way as idiomatic `sync.WaitGroup`
 usage.
 
-`par.DO` calls some number of function concurrently and waits for
-all to complete before it returns. `par.FOR` calls a single function
-N times concurrently, where N is defined by an integer range (with
-each call being passed its _index_ in the range).
+The `par.DO` function calls some number of functions, concurrently, and waits for
+them to complete before it returns. The `par.FOR` function calls a _single_ function
+a number of times defined by two integers. Each call occurs concurrently and as with
+`par.DO`, `par.FOR` only returns when all of its function _calls_ complete.
 
-`par.DO` mimics the occam `PAR` keyword and `par.FOR` occam's
-_replicated-PAR_ concurrent for-loop. The functions are implemented
-using `sync.WaitGroup` and hides the repetitive _clutter_.
+`par.DO` mimics the occam `PAR` keyword and `par.FOR` the
+_replicated-PAR_ construct (a concurrent _for_-loop). In Go
+the functions are implemented around `sync.WaitGroup` and hide
+the repetitive _clutter_ of wait group manipulations.
 
 ## An example
 
 Imagine we have some functions that run loops to do some control
 operation. In our system we run these concurrently, perhaps they
 communicate but that's detail we can ignore for the time being.
-We run then concurrently and wait for them to finish.  Which in
-this case they never do...
+We run then concurrently and wait for them to finish.
 
 	par.DO(
 		ControlFuelRods,
@@ -29,8 +29,8 @@ this case they never do...
 		FlashLights,
 		ControlSirens,
 		func() {
-			par.FOR(0, 10, func(number int) {
-				MonitorDoor(number)
+			par.FOR(0, 10, func(i int) {
+				MonitorDoor(i+1)
 			})
 		},
         )
