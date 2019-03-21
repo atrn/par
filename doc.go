@@ -1,3 +1,7 @@
+/*
+ *  Copyright © 2013. Andy Newman.
+ */
+
 // Package par provides functions to structure concurrent programs.
 //
 // The package defines the functions par.DO and par.FOR that implement
@@ -32,13 +36,13 @@
 // Usage
 //
 // 	par.DO(
-// 	    ControlFuelRods, // a func()
-// 	    MonitorCoolant,
-// 	    MoveDials,
-// 	    FlashLights,
-//          ControlSirens,
-//          func() {
-// 		par.FOR(0, 10, func(int) {
+//	    ControlFuelRods,
+//	    MonitorCoolant,
+//	    MoveDials,
+//	    FlashLights,
+//	    ControlSirens,
+//	    func() {
+//		par.FOR(0, 10, func(int) {
 // 		    ...  do work
 // 		})
 //          },
@@ -53,82 +57,6 @@
 // important, the concurrent structure of a program can be a highly
 // important aspect of its design and often is not well communicated
 // between developers. I'm hoping these little functions an help.
-//
-//
-// Import Abuses
-//
-// We can abuse Go's ability to import a package's symbols into the
-// current package namespace to drop the package qualification when
-// using DO() and FOR().  This makes using them seem a little more
-// like using a native language construct.
-//
-// So, a user imports the package using ``import . "par"'', note
-// the dot. They can then call its functions without qualification.
-// The code above beomes,
-//
-// 	DO(
-// 	    controlFuelRods,
-// 	    monitorCoolant,
-// 	    moveDials,
-// 	    flashLights,
-//          controlSirens,
-// 	    func() {
-//                 FOR(0, 10, func(int) {
-//                     ...  do work
-//               	})
-//             },
-//         )
-//
-//
-// This code looks okay, if you accept the namespace pollution, but the
-// unqualified names DO() and FOR() are a little too generic and the code
-// itself, especially "DO(", a little hard to read.
-//
-// So. We define synonyms, PAR and PAR_FOR, for DO() and FOR(). These names
-// mimic occam directly. Well, PAR does. A real replicated PAR requires
-// language changes. But I digress.
-//
-// Code that uses the synonymous names, PAR and PAR_FOR, looks like,
-//
-// 	PAR(
-// 	    controlFuelRods,
-// 	    monitorCoolant,
-// 	    moveDials,
-// 	    flashLights,
-//             controlSirens,
-//             func() {
-// 	        PAR_FOR(0, 10, func(int) {
-// 	            ...  do work
-//     	        })
-//             },
-//         )
-//
-// This, in my opinion, is much easy to read.
-//
-// Why Not Both?
-//
-// Users importing the package normally will also see the synonyms and
-// can replace uses of DO and FOR with PAR and PAR_FOR is desired.
-//
-// 	par.PAR(
-// 	    controlFuelRods,
-// 	    monitorCoolant,
-// 	    moveDials,
-// 	    flashLights,
-//             controlSirens,
-//             func() {
-// 	        par.FOR(0, 10, func(int) {
-// 	            ...  do work
-//     	        })
-//             },
-//         )
-//
-//
-// The par.PAR is a little redundant. And using par.PAR_FOR is right out.
-// It is for reaons such as this, readabilty, why I selected par.DO and
-// par.FOR as exported names. But also define PAR and PAR_FOR for the
-// import abusers, like myself.
-//
 //
 // PAR Nesting
 //
@@ -148,16 +76,31 @@
 //
 // Armed with FORfn we can now write,
 //
-// 	PAR(
+// 	par.DO(
 // 	    controlFuelRods,
 // 	    monitorCoolant,
 // 	    moveDials,
 // 	    flashLights,
-//          controlSirens,
-// 	    FORfn(0, 10, func(i int) {
-// 	            ...  run generator i
-//     	    }),
-//         )
+// 	    runSirens,
+// 	    par.FORfn(0, 10, func(i int) {
+// 	        ...  run generator i
+// 	    }),
+//     )
 //
+// Dynamic par
+//
+// To support more dynamic use the package defines a type, Group, that
+// wraps a sync.WaitGroup and uses methods specific to starting
+// goroutines and waiting for them.
+//
+// The user defines a variable of type par.Group and then uses
+// the Add and Wait methods to start new goroutines and to wait
+// for them to complete.
+//
+//	var g par.Group
+//	for in := range channel {
+//		g.Add(fn, in)
+//	}
+//	g.Wait()
 //
 package par
