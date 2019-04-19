@@ -5,27 +5,36 @@
 // Package par provides functions to structure concurrent programs.
 //
 // The package defines the functions par.DO and par.FOR that implement
-// synchronized "processes" (goroutines) in manner similar to the occam
-// programming language's PAR and replicated-PAR control structures.
-// Synchronized goroutines are a common process structure used in many
-// concurrent programs. In Go this process structure is iodiomatically
-// implemented using the sync package's WaitGroup type.
+// synchronized "processes" (goroutines) in a manner similar to the
+// PAR and replicated-PAR control structures found in the occam
+// programming language.
 //
-// The par.DO function runs some number of functions concurrently and
-// waits for all to terminate before it returns. par.DO mimics occam's
-// PAR control structure. In occam PAR applies to statements, in Go
-// functions are used as the unit of code with closures relied upon for
-// binding data values to specific function invocations.
+// Synchronizing upon the complementation of groups of goroutines is a
+// common process structure used in many concurrent programs. And in
+// Go the structure is idiomatically implemented via sync.WaitGroup
+// (and the fact the idiom exists demonstrates its commonality).
 //
-// The par.FOR function concurrenly calls a single function a number
-// of times defined by a range described by two integer "loop control"
-// values. par.FOR iterates over this range, with a step of 1, calling
-// the supplied function within a separate goroutine for each
-// iteration of the loop. The function is passed the value of the
-// loop control variable for its iteration, a form of "id". par.FOR
-// then waits for all functions to complete, and their goroutines
-// terminate, before it returns. par.FOR is a form of occam's
-// "replicated-PAR" control structure.
+// The par.DO function mimics occam's PAR and runs some number of
+// functions concurrently then waits for them to complete before it
+// oompletes and returns to the caller.
+//
+// par.DO implements the CSP _PAR_ construct, part of what some people
+// are calling _structured concurrency_.
+//
+// In occam, and CSP, a PAR applies to statements. In Go functions,
+// closures, are used. A par.DO calls zero or more functions with each
+// call within a separate goroutine.
+//
+// The par.FOR function is a concurrent for-loop and mimics occam's
+// replicated-PAR statement. par.FOR calls a single function N times,
+// concurrently, where N is defined by two integer _control_ values, a
+// start value and a limit value. par.FOR iterates over the range
+// defined by these values, using a step of 1, and calls the supplied
+// function with the current loop index as its _identifier_.  Each
+// call occuring within a separate goroutine. Like par.DO the call
+// to par.FOR only returns when all goroutines complete.
+//
+// Implementation
 //
 // par.DO and par.FOR are implemented sync.WaitGroup and consolidate
 // WaitGroup manipulation within the package which helps remove repetition
@@ -36,14 +45,13 @@
 // Usage
 //
 // 	par.DO(
-//	    ControlFuelRods,
-//	    MonitorCoolant,
-//	    MoveDials,
-//	    FlashLights,
-//	    ControlSirens,
+//	    controlFuelRods,
+//	    monitorCoolant,
+//	    moveDials,
+//	    flashLights,
 //	    func() {
-//		par.FOR(0, 10, func(int) {
-// 		    ...  do work
+//		par.FOR(0, 10, func(i int) {
+// 		    ...  run generator i
 // 		})
 //          },
 //      )
@@ -81,7 +89,6 @@
 // 	    monitorCoolant,
 // 	    moveDials,
 // 	    flashLights,
-// 	    runSirens,
 // 	    par.FORfn(0, 10, func(i int) {
 // 	        ...  run generator i
 // 	    }),
