@@ -4,45 +4,33 @@
 
 // Package par provides functions to structure concurrent programs.
 //
-// The package defines the functions par.DO and par.FOR that implement
+// Package par defines the functions par.DO and par.FOR that implement
 // synchronized "processes" (goroutines) in a manner similar to the
-// PAR and replicated-PAR control structures found in the occam
-// programming language.
+// occam programming language's PAR and replicated-PAR concurrent
+// control structures.
 //
-// Synchronizing upon the complementation of groups of goroutines is a
-// common process structure used in many concurrent programs. And in
-// Go the structure is idiomatically implemented via sync.WaitGroup
-// (and the fact the idiom exists demonstrates its commonality).
+// par.DO mimics occam's PAR, calling some number of functions
+// concurrently then waiting for them to complete before it oompletes
+// and returns to its caller. par.FOR mimics occam's replicated-PAR
+// structure and provides a form of concurrent for-loop with the same
+// synchronization semantics as par.DO, only returning when all of its
+// goroutines complete.
 //
-// The par.DO function mimics occam's PAR and runs some number of
-// functions concurrently then waits for them to complete before it
-// oompletes and returns to the caller.
-//
-// par.DO implements the CSP _PAR_ construct, part of what some people
-// are calling _structured concurrency_.
-//
-// In occam, and CSP, a PAR applies to statements. In Go functions,
-// closures, are used. A par.DO calls zero or more functions with each
-// call within a separate goroutine.
-//
-// The par.FOR function is a concurrent for-loop and mimics occam's
-// replicated-PAR statement. par.FOR calls a single function N times,
-// concurrently, where N is defined by two integer _control_ values, a
-// start value and a limit value. par.FOR iterates over the range
-// defined by these values, using a step of 1, and calls the supplied
-// function with the current loop index as its _identifier_.  Each
-// call occuring within a separate goroutine. Like par.DO the call
-// to par.FOR only returns when all goroutines complete.
+// The process structures implemented using par.DO and par.FOR are
+// common.  Synchronizing upon goroutine complementation being common
+// enough to be idiomatically implemented using sync.WaitGroup. The
+// fact that the idiom exists being all the evidence required.
 //
 // Implementation
 //
-// par.DO and par.FOR are implemented sync.WaitGroup and consolidate
-// WaitGroup manipulation within the package which helps remove repetition
-// from user code. Subjectively the functions also improve readability
-// and remove clutter caused by the required WaitGroup manipulations
-// which can often obscure the user's actual code.
+// par.DO and par.FOR are implemented using sync.WaitGroup and
+// consolidate the various WaitGroup manipulations within the package
+// helping remove repetition from user code. Subjectively the
+// functions also improve readability and remove the clutter caused by
+// the WaitGroup manipulations which can often obscure the actual
+// code.
 //
-// Usage
+// Exanple Usage
 //
 // 	par.DO(
 //	    controlFuelRods,
@@ -50,7 +38,7 @@
 //	    moveDials,
 //	    flashLights,
 //	    func() {
-//		par.FOR(0, 10, func(i int) {
+//		par.FOR(0, 4, func(i int) {
 // 		    ...  run generator i
 // 		})
 //          },
@@ -66,14 +54,11 @@
 // important aspect of its design and often is not well communicated
 // between developers. I'm hoping these little functions an help.
 //
-// PAR Nesting
+// Nesting PAR
 //
-// Each of the above examples shows nesting of PAR via the
-// function literal calling par.FOR. This pattern, a func()
-// that just calls par.FOR is common and luckily Go lets us
-// make it simpler.
-//
-// The par package defines what it refers to as "fn" functions. These are,
+// The above example shows nesting of PARs, the function literal
+// calling par.FOR. This pattern, a func() that just calls par.FOR is
+// common but Go allows us to make it simpler.
 //
 //     func DOfn(f ...func()) func()
 //     func FORfn(start, limit int, f func(int)) func()
@@ -82,32 +67,78 @@
 // are used in created nested process structures.  FORfn is the most
 // useful.
 //
-// Armed with FORfn we can now write,
+// Armed with FORfn we can now write the above code to avoid one
+// level of function,
 //
 // 	par.DO(
 // 	    controlFuelRods,
 // 	    monitorCoolant,
 // 	    moveDials,
 // 	    flashLights,
-// 	    par.FORfn(0, 10, func(i int) {
+// 	    par.FORfn(0, 4, func(i int) {
 // 	        ...  run generator i
 // 	    }),
 //     )
 //
-// Dynamic par
+// Groups, dynamic PAR
 //
-// To support more dynamic use the package defines a type, Group, that
-// wraps a sync.WaitGroup and uses methods specific to starting
+// To support dynamic use, the package defines the type Group that
+// wraps sync.WaitGroup and uses methods specific to starting
 // goroutines and waiting for them.
 //
-// The user defines a variable of type par.Group and then uses
-// the Add and Wait methods to start new goroutines and to wait
-// for them to complete.
+// The user defines a variable of type par.Group and then calls the
+// Add and Wait methods to start new goroutines and wait for them to
+// complete.
 //
 //	var g par.Group
 //	for in := range channel {
 //		g.Add(fn, in)
 //	}
 //	g.Wait()
+//
+// More Advanced Example
+//
+// A common process structure is "fan-out", dividing the processing of
+// "work" among some number of "workers" and collecting the results of
+// that processing. Go of course provides all the means to implement
+// such structures but doing so using standard packages can lead to
+// cluttered and messy code which obscures the actual work being
+// done.
+//
+// par.DO and par.FOR help avoid that clutter and help visualize the
+// process structure. And in the case of our "fan-out" example also
+// allow for correct resource management, i.e. we close channels at
+// the correct times.
+//
+// A some-what generic "fan-out" based process structure to process
+// the work held in the workToBeDone collection using Nworkers to Do()
+// the work. The call to par.DO returns when all work is done.
+//
+//
+//	toWorkers := make(chan Work)	  // for some type of Work
+//	fromWorkers := make(chan Result)  // for some type of Result
+//
+//	par.DO(
+//		func() { // feed the workers work
+//			for _, work := range workToBeDone {
+//				toWorkers <- work
+//			}
+//			close(toWorkers)
+//		},
+//		func() { // process work using Nworkers
+//			par.FOR(0, Nworkers, func(int) {
+//				for work := range toWorkers {
+//					fromWorkers <- Do(work)
+//				}
+//			})
+//			close(fromWorkers)
+//		},
+//		func() { // collect the results
+//			for result := range fromWorkers {
+//				...  do something with each result
+//			}
+//		},
+//	)
+//
 //
 package par
