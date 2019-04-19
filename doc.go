@@ -44,17 +44,8 @@
 //          },
 //      )
 //
-// Each thing par.DO runs in parallel is a func().  In the above example
-// just assume there's a func controlFueldRods(), func monitorCoolant()
-// and so on (the example shows the use of named functions in place of
-// literal closures to clarify program structure).
 //
-// In code the use of par.DO and par.FOR will read quite well. This is
-// important, the concurrent structure of a program can be a highly
-// important aspect of its design and often is not well communicated
-// between developers. I'm hoping these little functions an help.
-//
-// Nesting PAR
+// Nesting PARs
 //
 // The above example shows nesting of PARs, the function literal
 // calling par.FOR. This pattern, a func() that just calls par.FOR is
